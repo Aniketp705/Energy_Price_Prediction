@@ -30,8 +30,8 @@ import re
 import firebase_admin
 from firebase_admin import credentials, auth
 
-cred = credentials.Certificate('energy-price-prediction-1679b-c7ef14c5c816.json')
-# firebase_admin.initialize_app(cred)
+cred = credentials.Certificate('energy-price-prediction.json')
+firebase_admin.initialize_app(cred)
 
 
 def app():
