@@ -1,4 +1,9 @@
 import streamlit as st
+import re
+import firebase_admin
+from firebase_admin import credentials, auth
+
+
 """
 This module provides a Streamlit application for user authentication using Firebase.
 Functions:
@@ -26,12 +31,10 @@ Usage:
     Run the Streamlit app and navigate through the login and registration options.
     The app will handle user authentication and session management.
 """
-import re
-import firebase_admin
-from firebase_admin import credentials, auth
+
 
 cred = credentials.Certificate('energy-price-prediction-1679b-c7ef14c5c816.json')
-# firebase_admin.initialize_app(cred)
+firebase_admin.initialize_app(cred)
 
 
 def app():
@@ -115,8 +118,6 @@ def app():
 
     if st.session_state.signout:
         st.title('Account')
-
-
         st.text(f"Name:{st.session_state.username}")
         st.text(f"Email:{st.session_state.email}")
         st.button('Sign out', on_click=signout)
