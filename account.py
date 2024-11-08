@@ -1,7 +1,10 @@
 import streamlit as st
 import re
 import firebase_admin
-from firebase_admin import credentials, auth
+from firebase_admin import credentials, auth, firestore
+import home
+
+db = firestore.client()
 
 
 """
@@ -33,8 +36,8 @@ Usage:
 """
 
 
-cred = credentials.Certificate('energy-price-prediction.json')
-firebase_admin.initialize_app(cred)
+
+
 
 
 def app():
