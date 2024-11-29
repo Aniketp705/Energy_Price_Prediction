@@ -15,14 +15,15 @@ from firebase_admin import credentials, auth, firestore
 # Initialize Firestore client for database interactions
 db = firestore.client()
 
+#Initialize google auth
+
+
 # Retrieve the username from session state to use in data storage
-username = account.st.session_state.username
+email = st.session_state.email
 
 # Set up Firebase credentials (commented out initialization line for clarity)
-cred = credentials.Certificate('energy-price-prediction.json')
-firebase_admin.initialize_app(cred, {
-    'databaseURL': 'https://energy-price-prediction-1679b-default-rtdb.asia-southeast1.firebasedatabase.app/'
-})
+# 
+
 
 # Preprocesses the input data by handling missing values, dropping unnecessary columns
 def preprocess_data(data):
@@ -63,16 +64,18 @@ def predict_price(data):
     # Calculate mean squared error to evaluate model performance
     mse = mean_squared_error(y_test, y_pred)
 
-    return y_pred, mse
+    r_squared = model.score(x_test, y_test)
+
+    return y_pred, y_test, r_squared
 
 # Function to store prediction data in Firestore database
-def store_data(username, prediction, accuracy):
+def store_data(email, prediction, accuracy):
     # Reference user's predictions document in Firestore
-    references = db.collection('predictions').document(username)
+    references = db.collection('predictions').document(email.strip('/'))
     
     # Store accuracy and prediction values in Firestore with merging option
     references.set({
-        'accuracy(MSE)': accuracy,
+        'accuracy(r-squared)': accuracy,
         'predicted values': prediction.tolist()
     }, merge=True)
 
@@ -90,7 +93,7 @@ def app():
                 font-size:20px !important;
             }
         </style>""", unsafe_allow_html=True)
-        st.markdown('<p class="big-font">Welcome back, {}</p>'.format(username), unsafe_allow_html=True)
+        st.markdown('<p class="big-font">Welcome back, {}</p>'.format(email), unsafe_allow_html=True)
 
         # Radio button for selecting options between making a prediction or viewing past predictions
         choice = st.radio('Select an option', ['Predict', 'View Prediction'])
@@ -110,20 +113,31 @@ def app():
                     
                     # Preprocess the sampled data
                     processed_data = preprocess_data(data)
-                    st.write(processed_data)
+                    st.write('Processed data:', processed_data)
                     
                     # Display a histogram of the target variable for distribution insights
+                    st.write('Histogram of Price Actual:')
                     plt.figure(figsize=(15, 10))
                     sns.histplot(processed_data, x='price actual')
                     st.pyplot(plt)
                     
                     # Make predictions and display results
-                    prediction, accuracy = predict_price(processed_data)
+                    prediction, y_test, accuracy = predict_price(processed_data)
                     st.write('The predicted prices are:', prediction)
-                    st.write('The mean squared error is:', accuracy)
+                    st.write('The r-squared value is:', accuracy)
+
+                    # Plot the predicted vs actual prices
+                    st.write('Predicted vs Actual Prices:')
+                    plt.figure(figsize=(15, 10))
+                    plt.plot(range(len(prediction)), prediction, label='Predicted Prices', color='blue')
+                    plt.plot(range(len(y_test)), y_test.values, label='Actual Prices', color='red')
+                    plt.xlabel('Index')
+                    plt.ylabel('Price')
+                    plt.legend()
+                    st.pyplot(plt)
                     
                     # Store prediction data in the Firestore database
-                    store_data(username, prediction, accuracy)
+                    store_data(email, prediction, accuracy)
                     st.success('Data stored successfully')
                 else:
                     # Show error if file is not uploaded
@@ -131,12 +145,13 @@ def app():
 
         elif choice == 'View Prediction':
             # Retrieve and display user's previous predictions from Firestore
-            references = db.collection('predictions').document(username).get()
+            references = db.collection('predictions').document(email).get()
             
             # Check if predictions exist for the user and display, otherwise show error
             if references.exists:
                 data = references.to_dict()
-                st.write('The accuracy was:', data['accuracy(MSE)'])
+                accuracy = data['accuracy(r-squared)']
+                st.write("The accuracy of the model was: {:.2f}%".format(accuracy*100))
                 st.write('The predicted values are:', data['predicted values'])
             else:
                 st.error('No predictions found')

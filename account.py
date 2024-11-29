@@ -1,30 +1,52 @@
 import streamlit as st
 import re
+import requests
 import firebase_admin
-from firebase_admin import credentials, auth, firestore
+from firebase_admin import credentials, firestore
+from config import API_KEY
 import home
+import json
 
-# Initialize Firestore client for database interactions
+# Initialize Firebase Admin SDK for database interactions
+cred = credentials.Certificate('energy-price-prediction.json')
+try:
+    firebase_admin.get_app()
+except ValueError:
+    firebase_admin.initialize_app(cred, {
+        'databaseURL': 'https://energy-price-prediction-1679b-default-rtdb.asia-southeast1.firebasedatabase.app/'
+    })
+
+# Initialize Firestore client
 db = firestore.client()
 
-"""
-This module provides a Streamlit application for user authentication using Firebase.
-Functions:
-    app(): Main function to run the Streamlit app.
-        - Handles user login and registration.
-        - Manages session state for user authentication.
-    Login(): Authenticates a user using Firebase Authentication.
-        - Retrieves user by email.
-        - Updates session state upon successful login.
-        - Displays error message for invalid email or password.
-    signout(): Signs out the current user.
-        - Resets session state for user authentication.
-Session State Variables:
-    - username: Stores the username of the logged-in user.
-    - email: Stores the email of the logged-in user.
-    - signout: Boolean flag to indicate if the user is signed out.
-    - signedout: Boolean flag to indicate if the user is signed out.
-"""
+
+def firebase_login(email, password):
+    url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={API_KEY}"
+    payload = {
+        "email": email,
+        "password": password,
+        "returnSecureToken": True
+    }
+    response = requests.post(url, json=payload)
+    if response.status_code == 200:
+        return response.json()  # Returns user info including ID token
+    else:
+        st.error("Invalid email or password.")
+        return None
+
+def firebase_register(email, password):
+    url = f"https://identitytoolkit.googleapis.com/v1/accounts:signUp?key={API_KEY}"
+    payload = {
+        "email": email,
+        "password": password,
+        "returnSecureToken": True
+    }
+    response = requests.post(url, json=payload)
+    if response.status_code == 200:
+        return response.json()  # Returns user info including ID token
+    else:
+        st.error("Failed to create user.")
+        return None
 
 def app():
     # Initialize session state variables if not already set
@@ -32,32 +54,32 @@ def app():
         st.session_state.username = ''
     if 'email' not in st.session_state:
         st.session_state.email = ''
+    if 'signout' not in st.session_state:
+        st.session_state.signout = False
+    if 'signedout' not in st.session_state:
+        st.session_state.signedout = False
 
-    # Login function to authenticate user using Firebase
-    def Login():
-        try:
-            user = auth.get_user_by_email(email)
-            st.success('Login successful')
-
-            # Update session state upon successful login
-            st.session_state.username = user.uid
-            st.session_state.email = user.email
+    # Function to handle user sign-in
+    def Login(email, password):
+        user = firebase_login(email, password)
+        if user:
+            st.session_state.username = user['localId']
+            st.session_state.email = user['email']
             st.session_state.signout = True
             st.session_state.signedout = True
-        except:
-            st.error('Invalid email or password')
+            st.success('Login successful!')
+
+    # Function to handle user registration
+    def Register(email, password):
+        user = firebase_register(email, password)
+        if user:
+            st.success("User created successfully!")
 
     # Function to handle user signout
     def signout():
         st.session_state.signout = False
         st.session_state.signedout = False
         st.session_state.username = ''
-
-    # Initialize additional session state variables
-    if 'signedout' not in st.session_state:
-        st.session_state.signedout = False
-    if 'signout' not in st.session_state:
-        st.session_state.signout = False
 
     # Display login or registration options if user is not signed in
     if not st.session_state['signedout']:
@@ -69,27 +91,21 @@ def app():
         if choice == 'Login':
             st.write('Login')
             email = st.text_input('Email')
+            password = st.text_input('Password', type='password')
 
             # Basic email validation
             if email:
                 if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
                     st.error('Invalid email')
 
-            # Password input and login button
-            st.text_input('Password', type='password')
-            st.button('Login', on_click=Login)
+            # Login button
+            if st.button('Login'):
+                Login(email, password)
 
         # Registration form
         elif choice == 'Register':
             st.write('Register')
             email = st.text_input('Email')
-
-            # Basic email validation
-            if email:
-                if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
-                    st.error('Invalid email')
-
-            username = st.text_input('Enter unique username')
             password = st.text_input('Password', type='password')
             confirm_pass = st.text_input('Confirm Password', type='password')
 
@@ -99,12 +115,10 @@ def app():
 
             # Register the new user if all conditions are met
             if st.button('Register'):
-                user = auth.create_user(email=email, password=password, uid=username)
-                st.success('User created successfully')
+                Register(email, password)
 
     # Account info and signout option for logged-in users
     if st.session_state.signout:
         st.title('Account')
-        st.text(f"Name: {st.session_state.username}")
         st.text(f"Email: {st.session_state.email}")
         st.button('Sign out', on_click=signout)

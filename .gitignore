@@ -3,3 +3,8 @@ __pycache__
 energy-price-prediction.json
 
 key.js
+
+secrets.toml
+
+config.py
+
