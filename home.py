@@ -14,15 +14,7 @@ from firebase_admin import credentials, auth, firestore
 
 # Initialize Firestore client for database interactions
 db = firestore.client()
-
-#Initialize google auth
-
-
-# Retrieve the username from session state to use in data storage
-email = st.session_state.email
-
-# Set up Firebase credentials (commented out initialization line for clarity)
-# 
+ 
 
 
 # Preprocesses the input data by handling missing values, dropping unnecessary columns
@@ -37,9 +29,9 @@ def preprocess_data(data):
     
     # Calculate percentages of NaN values and drop columns with high null values
     nan_percentages = round(data.isna().sum() / len(data) * 100, 2)
-    null_values = ['generation marine', 'generation geothermal', 'generation fossil peat',
-                   'generation wind offshore', 'generation fossil oil shale', 'generation fossil coal-derived gas']
-    data = data.drop(null_values, axis=1)
+    # null_values = ['generation marine', 'generation geothermal', 'generation fossil peat',
+    #                'generation wind offshore', 'generation fossil oil shale', 'generation fossil coal-derived gas']
+    # data = data.drop(null_values, axis=1)
 
     return data
 
@@ -62,7 +54,7 @@ def predict_price(data):
     y_pred = model.predict(x_test)
     
     # Calculate mean squared error to evaluate model performance
-    mse = mean_squared_error(y_test, y_pred)
+    # mse = mean_squared_error(y_test, y_pred)
 
     r_squared = model.score(x_test, y_test)
 
@@ -83,10 +75,15 @@ def store_data(email, prediction, accuracy):
 def app():
     st.title('Home')
 
-    st.title('Welcome to the Energy Price Prediction App!')
+    try:
+        email = st.session_state.email
+    except AttributeError:
+        st.error('Please sign in to access the prediction features')
+        st.stop()
     # Display a welcome message for signed-in users
     if st.session_state.signout:
         # Display a welcome message for signed-in users
+        st.title('Welcome to the Energy Price Prediction App!')
         st.markdown("""
         <style>
             .big-font {
@@ -158,7 +155,11 @@ def app():
 
     else:
         # Display a message for signed-out users
-        st.write('Please sign in to access the prediction features')
+        st.error('Please sign in to access the prediction features')
+    
+    
+    
+
     
     
     
