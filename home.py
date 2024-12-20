@@ -23,9 +23,15 @@ def preprocess_data(data):
     data.fillna(method='ffill', inplace=True)
     data = data.drop_duplicates()
     
+    # Drop columns with all zero values
+    data = data.loc[:, (data != 0).any(axis=0)]
+    # Drop columns with any NaN values
+    data = data.dropna(axis=1)
+    
     # Drop specific columns that are not needed for analysis
-    data = data.drop(['generation hydro pumped storage aggregated', 'forecast wind offshore eday ahead'], axis=1)
-    data = data.drop(['time'], axis=1)
+    # data = data.drop(['generation hydro pumped storage aggregated', 'forecast wind offshore eday ahead'], axis=1)
+    if 'time' in data.columns:
+        data = data.drop(['time'], axis=1)
     
     # Calculate percentages of NaN values and drop columns with high null values
     nan_percentages = round(data.isna().sum() / len(data) * 100, 2)
